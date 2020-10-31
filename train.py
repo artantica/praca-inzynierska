@@ -27,20 +27,24 @@ except:
     # no model to load create new one
     pass
 
-def save_model_weights():
+def save_model_weights(A='A', B='B'):
     encoder.save_weights( "models/encoder.h5"   )
-    decoder_A.save_weights( "models/decoder_A.h5" )
-    decoder_B.save_weights( "models/decoder_B.h5" )
+    decoder_A.save_weights(f"models/decoder_{A}.h5" )
+    decoder_B.save_weights(f"models/decoder_{B}.h5" )
     print( "save model weights" )
 
 if __name__ == "__main__":
     # parse command line options
-    parser = argparse.ArgumentParser(description='Train model.')
-    parser.add_argument("--src", help="Name of a Celebrity (e.g. Angela Merkel)")
-    parser.add_argument("--dst", help="Name of a Person to swap the face with (e.g. Taylor Swift)")
-    parser.add_argument("--epochs", default=100000, type=int, help="Number of Epochs to train")
-    args = parser.parse_args()    
+    # parser = argparse.ArgumentParser(description='Train model.')
+    # parser.add_argument("--src", help="Name of a Celebrity (e.g. Angela Merkel)")
+    # parser.add_argument("--dst", help="Name of a Person to swap the face with (e.g. Taylor Swift)")
+    # parser.add_argument("--epochs", default=100000, type=int, help="Number of Epochs to train")
+    # args = parser.parse_args()    
     
+    epochs = 100 #100000
+    A = "EmiliaClarke"
+    B = "JenifferAniston"
+
     # check out directory directory and create if necessary
     if not os.path.exists("./out/"):
         os.makedirs("./out/")
@@ -49,20 +53,20 @@ if __name__ == "__main__":
         os.remove(f)
 
     # load dataset images 
-    images_A = get_image_paths( "data/faces/{}".format(args.src.lower().replace(" ", "_")))
-    images_B = get_image_paths( "data/faces/{}".format(args.dst.lower().replace(" ", "_")))
+    images_A = get_image_paths(f"data/faces/{A}")
+    images_B = get_image_paths(f"data/faces/{B}")
     # map between 0 and 1 and normalize images
-    images_A = load_images( images_A ) / 255.0
-    images_B = load_images( images_B ) / 255.0
+    images_A = load_images( images_A, max_number=500 ) / 255.0
+    images_B = load_images( images_B, max_number=500) / 255.0
     images_A += images_B.mean( axis=(0,1,2) ) - images_A.mean( axis=(0,1,2) )
 
     # create 100 preview images during training (to not spam your disk)
-    print_rate = args.epochs // 100
+    print_rate = epochs // 100
     if print_rate < 1:
         print_rate = 1
 
     # iterate epochs and train
-    for epoch in tqdm(range(args.epochs)):
+    for epoch in tqdm(range(epochs)):
         # get next training batch
         batch_size = 64
         warped_A, target_A = get_training_data( images_A, batch_size )
@@ -104,5 +108,5 @@ if __name__ == "__main__":
             cv2.imwrite( "./out/" + str(epoch) + ".jpg", figure )
 
     # save our model after training has finished
-    save_model_weights()
+    save_model_weights(A, B)
 

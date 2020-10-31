@@ -5,18 +5,25 @@ import cv2
 import numpy
 import os
 
+from random import sample
+
 # returns a list of file paths of all images in a specific directory
 def get_image_paths( directory ):
     return [ x.path for x in os.scandir( directory ) if x.name.endswith(".jpg") or x.name.endswith(".png") ]
 
-def load_images( image_paths, convert=None ):
+def load_images( image_paths, convert=None, max_number = None ):
     iter_all_images = ( cv2.imread(fn) for fn in image_paths )
     if convert:
         iter_all_images = ( convert(img) for img in iter_all_images )
     for i,image in enumerate( iter_all_images ):
         if i == 0:
             all_images = numpy.empty( ( len(image_paths), ) + image.shape, dtype=image.dtype )
+        if image.shape!=(256,256,3):
+            image = cv2.resize(image,(256,256))
         all_images[i] = image
+    if max_number is not None:
+        numpy.random.shuffle(all_images)
+        all_images = all_images[:max_number]
     return all_images
 
 def get_transpose_axes( n ):
