@@ -6,10 +6,20 @@ from keras.utils import conv_utils
 from keras.engine.topology import Layer
 import keras.backend as K
 
+def normalize_data_format(value):
+    if value is None:
+        value = K.image_data_format()
+    data_format = value.lower()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('The `data_format` argument must be one of '
+                         '"channels_first", "channels_last". Received: ' +
+                         str(value))
+    return data_format
+
 class PixelShuffler(Layer):
     def __init__(self, size=(2, 2), data_format=None, **kwargs):
         super(PixelShuffler, self).__init__(**kwargs)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = normalize_data_format(data_format)
         self.size = conv_utils.normalize_tuple(size, 2, 'size')
 
     def call(self, inputs):
