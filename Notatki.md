@@ -13,5 +13,4 @@ Zawrzeć podstawy sztucznej inteligencji i deep learningu.
 | Few-Shot Face Translation GAN | https://github.com/shaoanlu/fewshot-face-translation-GAN | Używa wytrenowanego modelu rozpoznawania twarzy do wydobycia latent embeddings z GAN processing.   |
 | DeepFaceLab | https://github.com/iperov/DeepFaceLab | Rozszerze metody z Faceswap nowymi modelami, np. H64, H128, LIAEFI128, SAE. Zapewnia tryb wykrycia wielu twarzy np. S3FD, MTCNN, dlib lub manulanie  |
 | DFaker | https://github.com/dfaker/df | Funkcja strat  DSSIM jest użyta do rekonstrukcji twarzy. Implementacja oparta na bibliotece Keras. |
-| DeepFake-tf | https://github.com/StromWine/DeepFake | Podobna do DFaker, ale zaimplementowana użyciu tensorflow. |
 | Deepfakes web β | https://deepfakesweb.com/ | Komercyjna strona do podmiany twarzy używająca algorytmów uczenia głębokiego. |
