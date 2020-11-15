@@ -7,6 +7,7 @@ Zawrzeć podstawy sztucznej inteligencji i deep learningu.
 ## Dostępne narzędzia
 
 | Narzędzie | Link | Główne cechy |
+| --- | --- | --- |
 | Faceswap | https://github.com/deepfakes/faceswap | Używa dwóch par koder-dekoder. Parametry kodera są wspólne. |
 | Faceswap-GAN | https://github.com/shaoanlu/faceswap-GAN | Adversial loss and perceptual loss (VGGface) są dodane do auto-encoder architektury. |
 | Few-Shot Face Translation GAN | https://github.com/shaoanlu/fewshot-face-translation-GAN | Urzywa wytrenowanego modelu rozpoznawania twarzy do wydobycia latent embeddings z GAN processing.   |
