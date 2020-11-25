@@ -1,3 +1,0 @@
-[submodule "faceswap"]
-	path = faceswap
-	url = https://github.com/deepfakes/faceswap.git
