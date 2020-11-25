@@ -1,0 +1,3 @@
+[submodule "faceswap"]
+	path = faceswap
+	url = git@github.com:artantica/faceswap.git
