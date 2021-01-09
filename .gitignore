@@ -1,3 +1,12 @@
+.DS_Store
+.idea/
+Makefile
+Untitled*.ipynb
+a*
+data/
+*.log.*
+modele/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
