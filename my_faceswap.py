@@ -94,9 +94,9 @@ class FaceSwapInterface:
     def convert_live(self, arguments):
         args.ConvertLiveArgs(
             self._subparser, "convert_live", "This command convert live stream and swap faces A for B.")
-        args_str = f"convert-live --model-dir {arguments.model_dir} --detector {arguments.detector} " \
+        args_str = f"convert_live --model-dir {arguments.model_dir} --detector {arguments.detector} " \
                    f"--aligner {arguments.aligner}"
-        if arguments.output:
+        if arguments.output_path:
             args_str += f" --output-dir {arguments.output_path}"
         self._run_script(args_str)
 
@@ -115,11 +115,6 @@ class Video:
         self._faces_folder = faces_directory
 
         self._alignments = os.path.join(self._faces_folder, self._video_name + "_" + _ALIGNMENTS_FILE)
-
-        # print(f"video_name={video_name}, video_path={video_path}, extension={extension}")
-
-        # self.number_of_frames = count_number_of_matching_files(directory=self._frames_folder, regex=(self._video_name + r"([a-zA-Z0-9])+\_frame\_[0-9]{4}\.jpg"))
-        # self.number_of_faces = count_number_of_matching_files(directory=self._faces_folder, regex=(self._video_name + r"\_frame\_[0-9]{4}\_[0-9]{1}\.jpg"))
 
     @property
     def video_name(self):
@@ -439,7 +434,8 @@ if __name__ == '__main__':
     _set_convert_live_subparser(convert_live)
 
     arguments = parser.parse_args()
-    script = ScriptExecutor(arguments.command)
+    if hasattr(arguments, "command") and arguments.command:
+        script = ScriptExecutor(arguments.command)
 
     if arguments.command == 'extract':
         person = Person(arguments.name)
@@ -462,7 +458,7 @@ if __name__ == '__main__':
 
         # use temp_dir, and when done:
         temp_dir.cleanup()
-    elif arguments.command == 'convert-live':
+    elif arguments.command == 'convert_live':
         _faceswap.convert_live(arguments=arguments)
     else:
         pass
