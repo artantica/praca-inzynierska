@@ -39,6 +39,7 @@ _FRAMES = 'frames'
 _FACES = 'faces'
 _ALIGNMENTS_FILE = "alignments.fsa"
 
+logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 def get_sources_info():
     get_people()
@@ -63,7 +64,7 @@ class FaceSwapInterface:
 
     def extract(self, input_dir, output_dir, alignments, arguments):
         """
-        Run extraction from faceswap.py
+        Run extraction from faceswap.py.
 
         :param input_dir: str
         Input directory with images to extract.
@@ -77,7 +78,7 @@ class FaceSwapInterface:
         :param arguments: :class:`argparse.Namespace`
         The arguments that were passed to the convert process as generated from Faceswap's command
         line arguments
-        :return:
+
         """
         args.ExtractArgs(self._subparser, "extract", "Extract the faces from a pictures.")
         args_str = f"extract --input-dir {input_dir} --output-dir {output_dir} --detector {arguments.detector} " \
@@ -88,12 +89,20 @@ class FaceSwapInterface:
 
     def extract_for_conversion(self, input_dir, output_dir, alignments, arguments):
         """
+        Run extraction before conversion from faceswap.py.
 
-        :param input_dir:
-        :param output_dir:
-        :param alignments:
-        :param arguments:
-        :return:
+        :param input_dir: str
+        Input directory with images to extract.
+
+        :param output_dir: str
+        Output directory, where results will be saved.
+
+        :param alignments: str
+        Path for alignments file.
+
+        :param arguments: :class:`argparse.Namespace`
+        The arguments that were passed to the convert process as generated from Faceswap's command
+        line arguments.
         """
         args.ExtractArgs(self._subparser, "extract", "Extract the faces from a pictures.")
         args_str = f"extract --input-dir {input_dir} --output-dir {output_dir} --detector {arguments.detector} " \
@@ -101,6 +110,19 @@ class FaceSwapInterface:
         self._run_script(args_str)
 
     def train(self, input_a_dir, input_b_dir, arguments):
+        """
+        Run training from faceswap.py.
+
+        :param input_a_dir: str
+        Input directory with faces from person A.
+
+        :param input_b_dir: str
+        nput directory with faces from person B.
+
+        :param arguments: :class:`argparse.Namespace`
+        The arguments that were passed to the convert process as generated from Faceswap's command
+        line arguments.
+        """
         args.TrainArgs(
             self._subparser, "train", "This command trains the model for the two faces A and B.")
         args_str = f"train --input-A {input_a_dir} --input-B {input_b_dir} --model-dir {arguments.model_dir} " \
@@ -108,6 +130,13 @@ class FaceSwapInterface:
         self._run_script(args_str)
 
     def convert(self, arguments, alignments):
+        """
+        Run conversion from faceswap.py.
+
+        :param arguments: :class:`argparse.Namespace`
+        The arguments that were passed to the convert process as generated from Faceswap's command
+        line arguments.
+        """
         args.ConvertArgs(
             self._subparser, "convert", "This command trains the model for the two faces A and B.")
 
@@ -117,6 +146,13 @@ class FaceSwapInterface:
         self._run_script(args_str)
 
     def convert_live(self, arguments):
+        """
+        Run live conversion from faceswap.py.
+
+        :param arguments: :class:`argparse.Namespace`
+        The arguments that were passed to the convert process as generated from Faceswap's command
+        line arguments.
+        """
         args.ConvertLiveArgs(
             self._subparser, "convert_live", "This command convert live stream and swap faces A for B.")
         args_str = f"convert_live --model-dir {arguments.model_dir} --detector {arguments.detector} " \
@@ -126,6 +162,12 @@ class FaceSwapInterface:
         self._run_script(args_str)
 
     def _run_script(self, args_str):
+        """
+        Run proper script
+
+        :param args_str: str
+        Arguments for function to run.
+        """
         args = self._parser.parse_args(args_str.split(' '))
         args.func(args)
 
@@ -161,17 +203,13 @@ class Video:
     def frames_folder(self):
         return self._frames_folder
 
-    # def set_frames_number(self, number):
-    #     self.number_of_frames = number
-    #
-    # def set_faces_number(self, number):
-    #     self.number_of_faces = number
 
 class Alignments:
     def __init__(self, faces_dir, output, alignments_files):
         self.faces_dir = faces_dir
         self.output = output
         self.alignments_files = alignments_files
+
 
 class Person:
     def __init__(self, name):
@@ -196,17 +234,11 @@ class Person:
         path_filter_images = os.path.join(_DATA_DIRECTORY, self.name, _FILTER_IMAGES)
         self.filter_images_directory = get_folder(path=path_filter_images)
 
-        # path_images = os.path.join(_DATA_DIRECTORY, self.name, _IMAGES)
-        # self.images_directory = get_folder(path=path_images)
-
         path_frames = os.path.join(_DATA_DIRECTORY, self.name, _FRAMES)
         self.frames_directory = get_folder(path=path_frames)
 
         path_faces = os.path.join(_DATA_DIRECTORY, self.name, _FACES)
         self.faces_directory = get_folder(path=path_faces)
-
-        # path_processed = os.path.join(_DATA_DIRECTORY, self.name, _PROCESSED_DIRECTORY)
-        # self.processed_directory = get_folder(path=path_processed)
 
     def _check_if_exist(self):
         if self.name in sources['people']:
@@ -249,7 +281,7 @@ class Person:
         video_clip = VideoFileClip(video.video_path)
 
         start_time = time.time()
-        print('[extract-frames] about to extract_frames for {}, fps {}, length {}s'.format(video.video_name,
+        logger.info('About to extract_frames for {}, fps {}, length {}s'.format(video.video_name,
                                                                                            video_clip.fps,
                                                                                            video_clip.duration))
         frame_number = 0
@@ -259,9 +291,7 @@ class Person:
             cv2.imwrite(video_frame_file, frame)
             frame_number += 1
 
-        # video.set_frames_number(frame_number-1)
-
-        print(f'[extract] finished extract_frames for {video.frames_folder}, total frames {frame_number - 1}, time taken {time.time() - start_time:.0f}s')
+        logger.info(f'Finished extract_frames for {video.frames_folder}, total frames {frame_number - 1}, time taken {time.time() - start_time:.0f}s')
 
     def _extract_faces(self, video):
         _faceswap.extract(input_dir=self.frames_directory, output_dir=self.faces_directory,
@@ -275,7 +305,8 @@ class Person:
             shutil.copy(alignments_files[0], alignment_file_path)
             return
         elif len(alignments_files) < 1:
-            pass #TODO: add what if alignment is gone
+            logger.error(f"Missing alignment file. Extract again.")
+            exit()
         alignments = self._load_alignments(alignments_files)
 
         args = Alignments(faces_dir=self.faces_directory, output=alignment_file_path, alignments_files=alignments_files)
@@ -481,9 +512,6 @@ if __name__ == '__main__':
                                          alignments=alignments_file, arguments=arguments)
         _faceswap.convert(arguments=arguments, alignments=alignments_file)
 
-        # use temp_dir, and when done:
         temp_dir.cleanup()
     elif arguments.command == 'convert_live':
         _faceswap.convert_live(arguments=arguments)
-    else:
-        pass
