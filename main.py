@@ -62,6 +62,23 @@ class FaceSwapInterface:
         self._subparser = self._parser.add_subparsers()
 
     def extract(self, input_dir, output_dir, alignments, arguments):
+        """
+        Run extraction from faceswap.py
+
+        :param input_dir: str
+        Input directory with images to extract.
+
+        :param output_dir: str
+        Output directory, where results will be saved.
+
+        :param alignments: str
+        Path for alignments file.
+
+        :param arguments: :class:`argparse.Namespace`
+        The arguments that were passed to the convert process as generated from Faceswap's command
+        line arguments
+        :return:
+        """
         args.ExtractArgs(self._subparser, "extract", "Extract the faces from a pictures.")
         args_str = f"extract --input-dir {input_dir} --output-dir {output_dir} --detector {arguments.detector} " \
                    f"--aligner {arguments.aligner}"
@@ -70,6 +87,14 @@ class FaceSwapInterface:
         self._run_script(args_str)
 
     def extract_for_conversion(self, input_dir, output_dir, alignments, arguments):
+        """
+
+        :param input_dir:
+        :param output_dir:
+        :param alignments:
+        :param arguments:
+        :return:
+        """
         args.ExtractArgs(self._subparser, "extract", "Extract the faces from a pictures.")
         args_str = f"extract --input-dir {input_dir} --output-dir {output_dir} --detector {arguments.detector} " \
                    f"--aligner {arguments.aligner} -al {alignments} -ssf"
@@ -87,7 +112,7 @@ class FaceSwapInterface:
             self._subparser, "convert", "This command trains the model for the two faces A and B.")
 
         args_str = f"convert --input-dir {arguments.input_path} --output-dir {arguments.output_path}" \
-                   f" --model-dir {arguments.model_dir} --trainer {arguments.trainer} --alinments {alignments} " \
+                   f" --model-dir {arguments.model_dir} --trainer {arguments.trainer} --alignments {alignments} " \
                    f"-otf -w ffmpeg"
         self._run_script(args_str)
 
