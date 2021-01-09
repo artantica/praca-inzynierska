@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" OpenCV DNN Face detection plugin """
+""" Source: https://github.com/deepfakes/faceswap
+    OpenCV DNN Face detection plugin """
 
 import numpy as np
 

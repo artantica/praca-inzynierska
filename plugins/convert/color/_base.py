@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-""" Parent class for color Adjustments for faceswap.py converter """
+"""
+Source: https://github.com/deepfakes/faceswap
+Parent class for color Adjustments for faceswap.py converter """
 
 import logging
 import numpy as np

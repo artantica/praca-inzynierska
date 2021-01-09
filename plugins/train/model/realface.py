@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" RealFaceRC1, codenamed 'Pegasus'
+""" Source: https://github.com/deepfakes/faceswap
+    RealFaceRC1, codenamed 'Pegasus'
     Based on the original https://www.reddit.com/r/deepfakes/
     code sample + contributions
     Major thanks goes to BryanLyon as it vastly powered by his ideas and insights.

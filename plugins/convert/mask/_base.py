@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Base class for Faceswap :mod:`~plugins.convert.mask` Plugins """
+""" Source: https://github.com/deepfakes/faceswap
+    Base class for Faceswap :mod:`~plugins.convert.mask` Plugins """
 
 import logging
 

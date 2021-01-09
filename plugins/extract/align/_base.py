@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Base class for Face Aligner plugins
+""" Source: https://github.com/deepfakes/faceswap
+    Base class for Face Aligner plugins
 
 All Aligner Plugins should inherit from this class.
 See the override methods for which methods are required.

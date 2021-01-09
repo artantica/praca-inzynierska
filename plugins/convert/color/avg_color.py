@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-""" Average colour adjustment color matching adjustment plugin for faceswap.py converter """
+"""
+Source: https://github.com/deepfakes/faceswap
+Average colour adjustment color matching adjustment plugin for faceswap.py converter """
 
 import numpy as np
 from ._base import Adjustment

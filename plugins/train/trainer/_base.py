@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Base Class for Faceswap Trainer plugins. All Trainer plugins should be inherited from
+""" Source: https://github.com/deepfakes/faceswap
+    Base Class for Faceswap Trainer plugins. All Trainer plugins should be inherited from
 this class.
 
 At present there is only the :class:`~plugins.train.trainer.original` plugin, so that entirely

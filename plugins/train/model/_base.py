@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+Source: https://github.com/deepfakes/faceswap
 Base class for Models. ALL Models should at least inherit from this class.
 
 See :mod:`~plugins.train.model.original` for an annotated example for how to create model plugins.

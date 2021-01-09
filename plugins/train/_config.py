@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Default configurations for models """
+""" Source: https://github.com/deepfakes/faceswap
+    Default configurations for models """
 
 import logging
 import os

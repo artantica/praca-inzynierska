@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Base class for Face Detector plugins
+""" Source: https://github.com/deepfakes/faceswap
+    Base class for Face Detector plugins
 
 All Detector Plugins should inherit from this class.
 See the override methods for which methods are required.

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Plugin loader for Faceswap extract, training and convert tasks """
+""" Source: https://github.com/deepfakes/faceswap
+    Plugin loader for Faceswap extract, training and convert tasks """
 
 import logging
 import os

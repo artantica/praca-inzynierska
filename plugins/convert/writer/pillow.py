@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Image output writer for faceswap.py converter """
+""" Source: https://github.com/deepfakes/faceswap
+    Image output writer for faceswap.py converter """
 
 from io import BytesIO
 from PIL import Image

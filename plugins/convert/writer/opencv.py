@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Image output writer for faceswap.py converter
+""" Source: https://github.com/deepfakes/faceswap
+    Image output writer for faceswap.py converter
     Uses cv2 for writing as in testing this was a lot faster than both Pillow and ImageIO
 """
 

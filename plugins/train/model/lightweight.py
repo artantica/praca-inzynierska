@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Lightweight Model by torzdf
+""" Source: https://github.com/deepfakes/faceswap
+    Lightweight Model by torzdf
     An extremely limited model for training on low-end graphics cards
     Based on the original https://www.reddit.com/r/deepfakes/
     code sample + contributions """

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Animated GIF writer for faceswap.py converter """
+""" Source: https://github.com/deepfakes/faceswap
+    Animated GIF writer for faceswap.py converter """
 import os
 
 import cv2

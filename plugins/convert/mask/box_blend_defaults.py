@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+    Source: https://github.com/deepfakes/faceswap
     The default options for the faceswap Box_Blend Mask plugin.
 
     Defaults files should be named <plugin_name>_defaults.py

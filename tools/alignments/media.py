@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Media items (Alignments, Faces, Frames)
+""" Source: https://github.com/deepfakes/faceswap
+    Media items (Alignments, Faces, Frames)
     for alignments tool """
 
 import logging

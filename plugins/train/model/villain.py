@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Original - VillainGuy model
+""" Source: https://github.com/deepfakes/faceswap
+    Original - VillainGuy model
     Based on the original https://www.reddit.com/r/deepfakes/ code sample + contributions
     Adapted from a model by VillainGuy (https://github.com/VillainGuy) """
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Plugin to blend the edges of the face box that comes out of the Faceswap Model into the final
+""" Source: https://github.com/deepfakes/faceswap
+    Plugin to blend the edges of the face box that comes out of the Faceswap Model into the final
 frame. """
 
 import numpy as np

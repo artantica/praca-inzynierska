@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Components Mask for faceswap.py """
+""" Source: https://github.com/deepfakes/faceswap
+    Components Mask for faceswap.py """
 
 import cv2
 import numpy as np

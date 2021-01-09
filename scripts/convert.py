@@ -1,5 +1,6 @@
 #!/usr/bin python3
-""" Main entry point to the convert process of FaceSwap """
+""" Source: https://github.com/deepfakes/faceswap
+    Main entry point to the convert process of FaceSwap """
 
 import logging
 import re

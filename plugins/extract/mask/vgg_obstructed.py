@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" VGG Obstructed face mask plugin """
+""" Source: https://github.com/deepfakes/faceswap
+    VGG Obstructed face mask plugin """
 
 import numpy as np
 from keras.layers import (Add, Conv2D, Conv2DTranspose, Cropping2D, Dropout, Input, Lambda,

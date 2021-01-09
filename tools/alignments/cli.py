@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Command Line Arguments for tools """
+""" Source: https://github.com/deepfakes/faceswap
+    Command Line Arguments for tools """
 from lib.cli.args import FaceSwapArgs
 from lib.cli.actions import DirOrFileFullPaths, DirFullPaths, FilesFullPaths, Radio, Slider
 

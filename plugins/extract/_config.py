@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Default configurations for extract """
+""" Source: https://github.com/deepfakes/faceswap
+    Default configurations for extract """
 
 import logging
 import os

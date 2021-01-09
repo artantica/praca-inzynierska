@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Original Trainer """
+""" Source: https://github.com/deepfakes/faceswap
+    Original Trainer """
 
 from ._base import TrainerBase
 

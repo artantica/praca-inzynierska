@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """ Original Model
+Source: https://github.com/deepfakes/faceswap
 Based on the original https://www.reddit.com/r/deepfakes/ code sample + contributions.
 
 This model is heavily documented as it acts as a template that other model plugins can be developed

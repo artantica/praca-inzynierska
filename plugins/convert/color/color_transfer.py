@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Color Transfer adjustment color matching adjustment plugin for faceswap.py converter
+"""
+    Color Transfer adjustment color matching adjustment plugin for faceswap.py converter
     source: https://github.com/jrosebr1/color_transfer
     The MIT License (MIT)
 

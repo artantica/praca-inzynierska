@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Helper functions for :mod:`~scripts.extract` and :mod:`~scripts.convert`.
+""" Source: https://github.com/deepfakes/faceswap
+    Helper functions for :mod:`~scripts.extract` and :mod:`~scripts.convert`.
 
 Holds the classes for the 2 main Faceswap 'media' objects: Images and Alignments.
 

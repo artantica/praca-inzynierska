@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" DFaker Model
+""" Source: https://github.com/deepfakes/faceswap
+    DFaker Model
     Based on the dfaker model: https://github.com/dfaker """
 
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Seamless clone adjustment plugin for faceswap.py converter
+""" Source: https://github.com/deepfakes/faceswap
+    Seamless clone adjustment plugin for faceswap.py converter
     NB: This probably isn't the best place for this, but it is independent of
         color adjustments and does not have a natural home, so here for now
         and called as an extra plugin from lib/convert.py

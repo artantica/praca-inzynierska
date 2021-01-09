@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Manual Balance colour adjustment plugin for faceswap.py converter """
+""" Source: https://github.com/deepfakes/faceswap
+    Manual Balance colour adjustment plugin for faceswap.py converter """
 
 import cv2
 import numpy as np

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Improved autoencoder for faceswap """
+""" Source: https://github.com/deepfakes/faceswap
+    Improved autoencoder for faceswap """
 
 from keras.layers import Concatenate, Dense, Flatten, Input, Reshape
 

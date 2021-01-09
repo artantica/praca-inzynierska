@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Base class for Face Masker plugins
+""" Source: https://github.com/deepfakes/faceswap
+Base class for Face Masker plugins
 
 Plugins should inherit from this class
 

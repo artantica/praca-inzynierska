@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Tools for manipulating the alignments serialized file """
+""" Source: https://github.com/deepfakes/faceswap
+    Tools for manipulating the alignments serialized file """
 
 import logging
 import os

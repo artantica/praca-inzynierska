@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Unbalanced Model
+""" Source: https://github.com/deepfakes/faceswap
+    Unbalanced Model
     Based on the original https://www.reddit.com/r/deepfakes/
         code sample + contributions """
 

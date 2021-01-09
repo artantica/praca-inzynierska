@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Extended Mask for faceswap.py """
+""" Source: https://github.com/deepfakes/faceswap
+    Extended Mask for faceswap.py """
 
 import cv2
 import numpy as np

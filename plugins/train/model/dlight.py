@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" A lightweight variant of DFaker Model
+""" Source: https://github.com/deepfakes/faceswap
+    A lightweight variant of DFaker Model
     By AnDenix, 2018-2019
     Based on the dfaker model: https://github.com/dfaker
 

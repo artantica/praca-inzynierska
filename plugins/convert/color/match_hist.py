@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Match histogram colour adjustment color matching adjustment plugin
+""" Source: https://github.com/deepfakes/faceswap
+    Match histogram colour adjustment color matching adjustment plugin
     for faceswap.py converter """
 
 import numpy as np

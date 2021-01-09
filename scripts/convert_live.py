@@ -1,5 +1,9 @@
 #!/usr/bin python3
-""" Main entry point to the convert process of FaceSwap """
+"""
+    Based on https://github.com/deepfakes/faceswap/blob/master/scripts/convert.py
+
+    Main entry point to the live convert process of FaceSwap
+"""
 
 import logging
 import re
@@ -24,7 +28,7 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 class Convert_Live:  # pylint:disable=too-few-public-methods
-    """ The Faceswap Face Conversion Process.
+    """ The Faceswap Face Live Conversion Process.
 
     The conversion process is responsible for swapping the faces on source frames with the optional
     output from a trained model.
@@ -78,7 +82,7 @@ class Convert_Live:  # pylint:disable=too-few-public-methods
         logger.debug(retval)
         return retval
 
-    def process(self, source=0):
+    def process(self):
         """ The entry point for triggering the Live Conversion Process.
 
         Should only be called from  :class:`lib.cli.launcher.ScriptExecutor`
@@ -141,6 +145,11 @@ class Convert_Live:  # pylint:disable=too-few-public-methods
             temp_dir.cleanup()
 
     def convert_frame(self, frame):
+        """
+
+        :param frame:
+        :return:
+        """
         item = dict(filename="filename", image=frame, detected_faces=self._face_detector.get_detected_faces(frame))
         item = self._predictor.load_item(item)
 

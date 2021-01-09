@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Tools for annotating an input image """
+""" Source: https://github.com/deepfakes/faceswap
+    Tools for annotating an input image """
 
 from collections import OrderedDict
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" MTCNN Face detection plugin """
+""" Source: https://github.com/deepfakes/faceswap
+    MTCNN Face detection plugin """
 
 from __future__ import absolute_import, division, print_function
 

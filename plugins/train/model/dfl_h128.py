@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" DeepFaceLab H128 Model
+""" Source: https://github.com/deepfakes/faceswap
+    DeepFaceLab H128 Model
     Based on https://github.com/iperov/DeepFaceLab
 """
 

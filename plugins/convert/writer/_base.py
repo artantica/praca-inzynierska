@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Parent class for output writers for faceswap.py converter """
+""" Source: https://github.com/deepfakes/faceswap
+    Parent class for output writers for faceswap.py converter """
 
 import logging
 import os

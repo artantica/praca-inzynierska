@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Sharpening for enlarged face for faceswap.py converter """
+""" Source: https://github.com/deepfakes/faceswap
+    Sharpening for enlarged face for faceswap.py converter """
 import cv2
 import numpy as np
 

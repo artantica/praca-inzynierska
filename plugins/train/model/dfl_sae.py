@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" DeepFaceLab SAE Model
+""" Source: https://github.com/deepfakes/faceswap
+    DeepFaceLab SAE Model
     Based on https://github.com/iperov/DeepFaceLab
 """
 

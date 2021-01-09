@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Plugin to blend the edges of the face between the swap and the original face. """
+""" Source: https://github.com/deepfakes/faceswap
+    Plugin to blend the edges of the face between the swap and the original face. """
 
 import cv2
 import numpy as np

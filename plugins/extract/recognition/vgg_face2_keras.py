@@ -1,5 +1,6 @@
 #!/usr/bin python3
-""" VGG_Face2 inference and sorting """
+""" Source: https://github.com/deepfakes/faceswap
+    VGG_Face2 inference and sorting """
 
 import logging
 import psutil

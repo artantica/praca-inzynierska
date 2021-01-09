@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Video output writer for faceswap.py converter """
+""" Source: https://github.com/deepfakes/faceswap
+    Video output writer for faceswap.py converter """
 import os
 from collections import OrderedDict
 from math import ceil

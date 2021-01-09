@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-""" The master faceswap.py script """
+"""
+Source: https://github.com/deepfakes/faceswap
+The master faceswap.py script
+"""
 import sys
 
 from lib.cli import args

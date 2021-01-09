@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" Base class for Faceswap :mod:`~plugins.extract.detect`, :mod:`~plugins.extract.align` and
+""" Source: https://github.com/deepfakes/faceswap
+    Base class for Faceswap :mod:`~plugins.extract.detect`, :mod:`~plugins.extract.align` and
 :mod:`~plugins.extract.mask` Plugins
 """
 import logging

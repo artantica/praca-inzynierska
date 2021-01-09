@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+Source: https://github.com/deepfakes/faceswap
 Return a requested detector/aligner/masker pipeline
 
 Tensorflow does not like to release GPU VRAM, so parallel plugins need to be managed to work
