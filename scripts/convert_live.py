@@ -117,19 +117,18 @@ class Convert_Live:  # pylint:disable=too-few-public-methods
             if status:
                 # frame = cv2.resize(frame, (640, 480))
                 # flip image, because webcam inverts it and we trained the model the other way!
-                # frame = cv2.flip(frame, 1)
-                cv2.imshow('Real', frame)
-                # image = self.convert_frame(frame, convert_colors=False)
+                frame = cv2.flip(frame, 1)
+                # cv2.imshow('Real', frame)
+                image = self.convert_frame(frame, convert_colors=False)
 
-                # image = cv2.flip(image, 1)
-                # cv2.imshow('Live video', image)
+                cv2.imshow('Live video', image)
 
-                # if self.results_path:
-                #     image_save = image * 255.0
-                #     image_save = np.rint(image_save,
-                #                        out=np.empty(image_save.shape, dtype="uint8"),
-                #                        casting='unsafe')
-                # images_to_save.append((counter, image_save))
+                if self.results_path:
+                    image_save = image * 255.0
+                    image_save = np.rint(image_save,
+                                       out=np.empty(image_save.shape, dtype="uint8"),
+                                       casting='unsafe')
+                    images_to_save.append((counter, image_save))
                 # if self._writer_pre_encode is not None:
                 #     patched_face = self._writer_pre_encode(patched_face)
                 #     print("After _writer_pre_encode")
@@ -143,16 +142,31 @@ class Convert_Live:  # pylint:disable=too-few-public-methods
                 # cv2.imwrite(swapped_path, image_save)
 
             # Hit 'enter' on the keyboard to quit!
-            if cv2.waitKey(10) and keypress.kbhit():
+            if cv2.waitKey(1) and keypress.kbhit():
                 console_key = keypress.getch()
                 if console_key in ("\n", "\r"):
                     logger.debug("Exit requested")
                     video_capture.release()
                     break
+            counter += 1
 
         cv2.destroyAllWindows()
         # TODO: zapis pliku
         # self._webcam_io.save(images_to_save)
+        import moviepy.video.io.ImageSequenceClip
+        if self.results_path:
+            import tempfile
+            temp_dir = tempfile.TemporaryDirectory()
+            image_files = []
+            for item in images_to_save:
+                path = os.path.join(temp_dir.name, f"{item[0]}.png")
+                cv2.imwrite(path, item[1])
+                image_files.append(path)
+
+            clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=6)
+            clip.write_videofile('my_video.mp4')
+            temp_dir.cleanup()
+
         # exit()
 
     def convert_frame(self, frame, convert_colors=True):
@@ -160,7 +174,6 @@ class Convert_Live:  # pylint:disable=too-few-public-methods
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # Swap RGB to BGR to work with OpenCV
 
         item = dict(filename="filename", image=frame, detected_faces=self._webcam_io.get_detected_faces(frame))
-        print(item)
         item = self._predictor.load_item(item)
 
         frame = self._converter.process(item)
