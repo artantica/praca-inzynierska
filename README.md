@@ -4,6 +4,12 @@ Repozytorium z plikami dotyczącymi pracy inżynierskiej p.t. `Aplikacja podmien
 
 Wszelkie notatki i przemyślenia znajdują się w pliku [Notatki.md](Notatki.md)
 
+# DYSK Z MATERIAŁAMI
+- [Link do dysku zawierającego wytrenowane modele](https://drive.google.com/drive/folders/1S20eGUh6uvBmnVMiTDVRQWlbVa3ITbOX?usp=sharing)
+- [Link do dysku zawierającego zdjęcia osób i wydobyte twarze, na których były wytrenowane modele](https://drive.google.com/drive/folders/1Wv7QKvLnM8RLZvUaEA3JEoUs072wcoZg?usp=sharing)
+
+# REPOZYTORIUM
+[Link do repozytorium GitHub zawierajacy kod źródłowy](https://github.com/artantica/praca-inzynierska.git)
 # LATEX
 - [Link z uprawnieniami do wyświetlania](https://www.overleaf.com/read/gbgjwrqzpmbx)
 
