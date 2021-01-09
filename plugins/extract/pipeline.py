@@ -80,11 +80,11 @@ class Extractor():
     def __init__(self, detector, aligner, masker, configfile=None, multiprocess=False,
                  exclude_gpus=None, rotate_images=None, min_size=20, normalize_method=None,
                  image_is_aligned=False):
-        logger.debug("Initializing %s: (detector: %s, aligner: %s, masker: %s, configfile: %s, "
+        logger.info("Initializing %s: (detector: %s, aligner: %s, masker: %s, configfile: %s, "
                      "multiprocess: %s, exclude_gpus: %s, rotate_images: %s, min_size: %s, "
                      "normalize_method: %s, image_is_aligned: %s)",
                      self.__class__.__name__, detector, aligner, masker, configfile, multiprocess,
-                     exclude_gpus, rotate_images, min_size, normalize_method, image_is_aligned)
+                     exclude_gpus, rotate_images, min_size, normalize_method, image_is_aligned) #TODO: change to debug
         self._instance = _get_instance()
         masker = [masker] if not isinstance(masker, list) else masker
         self._flow = self._set_flow(detector, aligner, masker)

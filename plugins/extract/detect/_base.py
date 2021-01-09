@@ -113,8 +113,7 @@ class Detector(Extractor):  # pylint:disable=abstract-method
         """
         exhausted = False
         batch = dict()
-        print(self.batchsize)
-        self.batchsize = 1
+        self.batchsize = 1 #TODO: set this
         for _ in range(self.batchsize):
             item = self._get_item(queue)
             if item == "EOF":
@@ -125,9 +124,6 @@ class Detector(Extractor):  # pylint:disable=abstract-method
             batch.setdefault("image", []).append(image)
             batch.setdefault("scale", []).append(scale)
             batch.setdefault("pad", []).append(pad)
-            # print(batch)
-            # break
-        print("JEj")
         if batch:
             batch["image"] = np.array(batch["image"], dtype="float32")
             logger.trace("Returning batch: %s", {k: v.shape if isinstance(v, np.ndarray) else v

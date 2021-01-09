@@ -1,27 +1,58 @@
+import sys
 import os
-from argparse import Namespace
+import shutil
+import json
+import logging
 import argparse
-import cv2
 import time
 import tqdm
 import numpy
-
-from moviepy.video.io.VideoFileClip import VideoFileClip
-from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
-from moviepy.video.fx.all import crop
-from moviepy.editor import AudioFileClip, clips_array, TextClip, CompositeVideoClip
-import shutil
+import cv2
+import re
 
 from pathlib import Path
-
-import sys
+from moviepy.video.io.VideoFileClip import VideoFileClip
 sys.path.append('faceswap')
 
 from lib.cli import args
 from tools.alignments.cli import AlignmentsArgs
 from lib.config import generate_configs
+from lib.utils import get_backend, get_folder
+from plugins.plugin_loader import PluginLoader
+from lib.cli.actions import FilesFullPaths
+from lib.cli.launcher import ScriptExecutor
+from tools.alignments.media import AlignmentData
+from tools.alignments.jobs import Merge
+from lib.convert import Converter
+from lib.face_filter import FaceFilter
 
-import json
+sources = dict()
+script = None
+
+_DATA_DIRECTORY = "data"
+_MODEL_DIRECTORY = 'models'
+_FILTER_IMAGES = 'filter_images'
+_PROCESSED_DIRECTORY = 'processed'
+_VIDEOS = 'videos'
+_IMAGES = 'images'
+_FRAMES = 'frames'
+_FACES = 'faces'
+_ALIGNMENTS_FILE = "alignments.fsa"
+
+
+def get_sources_info():
+    get_people()
+
+def get_people():
+    rootdir = get_folder(_DATA_DIRECTORY)
+    sources['people'] = ([name for name in os.listdir(rootdir) if not name.startswith(".")])
+
+def count_number_of_matching_files(directory, regex):
+    files = os.listdir(directory)
+    count = len([file for file in files if re.match(regex, file)])
+    return count
+
+get_sources_info()
 
 
 class FaceSwapInterface:
@@ -30,411 +61,408 @@ class FaceSwapInterface:
         generate_configs()
         self._subparser = self._parser.add_subparsers()
 
-    def extract(self, input_dir, output_dir, filter_path):
-        extract = args.ExtractArgs(
-            self._subparser, "extract", "Extract the faces from a pictures.")
-        args_str = "extract --input-dir {} --output-dir {} --detector cv2-dnn" #--filter {}
-        args_str = args_str.format(input_dir, output_dir) #filter_path
+    def extract(self, input_dir, output_dir, alignments, arguments):
+        args.ExtractArgs(self._subparser, "extract", "Extract the faces from a pictures.")
+        args_str = f"extract --input-dir {input_dir} --output-dir {output_dir} --detector {arguments.detector} " \
+                   f"--aligner {arguments.aligner}"
+        if alignments:
+            args_str += f" -al {alignments}"
         self._run_script(args_str)
 
-    def train(self, input_a_dir, input_b_dir, model_dir):
-        model_type = "Original"
+    def extract_for_conversion(self, input_dir, output_dir, alignments, arguments):
+        args.ExtractArgs(self._subparser, "extract", "Extract the faces from a pictures.")
+        args_str = f"extract --input-dir {input_dir} --output-dir {output_dir} --detector {arguments.detector} " \
+                   f"--aligner {arguments.aligner} -al {alignments} -ssf"
+        self._run_script(args_str)
 
-        train = args.TrainArgs(
+    def train(self, input_a_dir, input_b_dir, arguments):
+        args.TrainArgs(
             self._subparser, "train", "This command trains the model for the two faces A and B.")
-        args_str = "train --input-A {} --input-B {} --model-dir {} --trainer {} --batch-size {} --write-image"
-        args_str = args_str.format(input_a_dir, input_b_dir, model_dir, model_type, 20)
+        args_str = f"train --input-A {input_a_dir} --input-B {input_b_dir} --model-dir {arguments.model_dir} " \
+                   f"--trainer {arguments.trainer} --batch-size {arguments.batch_size} --snapshot-interval {arguments.snapshot_interval}"
+        self._run_script(args_str)
+
+    def convert(self, arguments, alignments):
+        args.ConvertArgs(
+            self._subparser, "convert", "This command trains the model for the two faces A and B.")
+
+        args_str = f"convert --input-dir {arguments.input_path} --output-dir {arguments.output_path}" \
+                   f" --model-dir {arguments.model_dir} --trainer {arguments.trainer} --alinments {alignments} " \
+                   f"-otf -w ffmpeg"
+        self._run_script(args_str)
+
+    def convert_live(self, arguments):
+        args.ConvertLiveArgs(
+            self._subparser, "convert_live", "This command convert live stream and swap faces A for B.")
+        args_str = f"convert-live --model-dir {arguments.model_dir} --detector {arguments.detector} " \
+                   f"--aligner {arguments.aligner}"
+        if arguments.output:
+            args_str += f" --output-dir {arguments.output_path}"
         self._run_script(args_str)
 
     def _run_script(self, args_str):
         args = self._parser.parse_args(args_str.split(' '))
         args.func(args)
 
-class FaceSwapToolsInterface:
-    def __init__(self):
-        self._parser = args.FullHelpArgumentParser()
-        generate_configs()
-        self._subparser = self._parser.add_subparsers()
-        self._parser.set_defaults(func=self._bad_args)
+_faceswap = FaceSwapInterface()
 
-    def _bad_args(self, *args):
-        """ Print help on bad arguments """
-        self._parser.print_help()
-        sys.exit(0)
+class Video:
+    def __init__(self, video_name, extension,  video_path, frames_directory, faces_directory):
+        self._video_name = video_name
+        self._extension = extension
+        self._video_path = video_path
+        self._frames_folder = frames_directory
+        self._faces_folder = faces_directory
 
-    def align_merge(self, aligments_path, faces_dir):
-        align = AlignmentsArgs(
-            self._subparser, "alignments", "This command lets you perform various tasks pertaining to an alignments file.")
-        args_str = "alignments --job merge --alignments_file {} -faces_folder {}"
-        args_str = args_str.format(" ".join(aligments_path), faces_dir)
-        self._run_script(args_str)
+        self._alignments = os.path.join(self._faces_folder, self._video_name + "_" + _ALIGNMENTS_FILE)
 
-    def _run_script(self, args_str):
-        self._set_tools()
-        args = self._parser.parse_args(args_str.split(' '))
-        args.func(args)
-        self._unset_tools()
+        # print(f"video_name={video_name}, video_path={video_path}, extension={extension}")
 
-    def _set_tools(self):
-        original = {"original": False}
-        data = None
-        with open("faceswap/config/.faceswap", "r") as cnf:
-            data = json.load(cnf)
-            data.update(original)
-        with open("faceswap/config/.faceswap", "w") as cnf:
-            json.dump(data, cnf)
+        # self.number_of_frames = count_number_of_matching_files(directory=self._frames_folder, regex=(self._video_name + r"([a-zA-Z0-9])+\_frame\_[0-9]{4}\.jpg"))
+        # self.number_of_faces = count_number_of_matching_files(directory=self._faces_folder, regex=(self._video_name + r"\_frame\_[0-9]{4}\_[0-9]{1}\.jpg"))
 
-    def _unset_tools(self):
-        original = {"original": True} # TODO: change na tools
-        data = None
-        with open("faceswap/config/.faceswap", "r") as cnf:
-            data = json.load(cnf)
-            data.update(original)
-        with open("faceswap/config/.faceswap", "w") as cnf:
-            json.dump(data, cnf)
+    @property
+    def video_name(self):
+        return self._video_name
 
-class MyFaceSwap:
-    VIDEO_PATH = 'data/videos'
-    PERSON_PATH = 'data/persons'
-    PROCESSED_PATH = 'data/processed'
-    OUTPUT_PATH = 'data/output'
-    MODEL_PATH = 'models'
-    MODELS = {}
+    @property
+    def video_path(self):
+        return self._video_path
 
-    @classmethod
-    def add_model(cls, model):
-        MyFaceSwap.MODELS[model._name] = model
+    @property
+    def alignments_path(self):
+        return self._alignments
 
-    def __init__(self, name, person_a, person_b):
-        def _create_person_data(person):
-            return {
-                'name': person,
-                'videos': [],
-                'faces': os.path.join(MyFaceSwap.PERSON_PATH, person + '.jpg'),
-                'photos': [],
-                'alignments': []
-            }
+    @property
+    def faces_folder(self):
+        return self._faces_folder
 
-        self._name = name
+    @property
+    def frames_folder(self):
+        return self._frames_folder
 
-        self._people = {
-            person_a: _create_person_data(person_a),
-            person_b: _create_person_data(person_b),
-        }
-        self._person_a = person_a
-        self._person_b = person_b
+    # def set_frames_number(self, number):
+    #     self.number_of_frames = number
+    #
+    # def set_faces_number(self, number):
+    #     self.number_of_faces = number
 
-        self._faceswap = FaceSwapInterface()
+class Alignments:
+    def __init__(self, faces_dir, output, alignments_files):
+        self.faces_dir = faces_dir
+        self.output = output
+        self.alignments_files = alignments_files
 
-        self._faceswap_tool = FaceSwapToolsInterface()
+class Person:
+    def __init__(self, name):
+        # self._arguments = arguments
+        self.name = name
 
-        if not os.path.exists(os.path.join(MyFaceSwap.VIDEO_PATH)):
-            os.makedirs(MyFaceSwap.VIDEO_PATH)
+        self.videos = []
+        self.logger = logging.getLogger(__name__)  # pylint:disable=invalid-name
+        self._check_if_exist()
+        self._get_person_directories()
+        self._get_videos()
+        self.number_of_videos = len(self.videos)
+        self.number_of_faces = count_number_of_matching_files(directory=self.faces_directory, regex=r"([a-zA-Z0-9])+\_frame\_[0-9]{4}\_[0-9]{1}\.jpg")
 
-    def add_photos(self, person, photo_dir):
-        self._people[person]['photos'].append(photo_dir)
+    def _get_person_directories(self):
+        path_person = os.path.join(_DATA_DIRECTORY, self.name)
+        self.person_directory = get_folder(path=path_person)
 
-    def add_video(self, person, name, url=None, fps=20):
-        self._people[person]['videos'].append({
-            'name': name,
-            'url': url,
-            'fps': fps
-        })
+        path_videos = os.path.join(_DATA_DIRECTORY, self.name, _VIDEOS)
+        self.videos_directory = get_folder(path=path_videos)
 
-    def fetch(self):
-        self._process_media(self._fetch_video)
+        path_filter_images = os.path.join(_DATA_DIRECTORY, self.name, _FILTER_IMAGES)
+        self.filter_images_directory = get_folder(path=path_filter_images)
 
-    def extract_frames(self):
-        self._process_media(self._extract_frames)
+        # path_images = os.path.join(_DATA_DIRECTORY, self.name, _IMAGES)
+        # self.images_directory = get_folder(path=path_images)
 
-    def extract_faces(self):
-        self._process_media(self._extract_faces)
-        self._process_media(self._extract_faces_from_photos, 'photos')
+        path_frames = os.path.join(_DATA_DIRECTORY, self.name, _FRAMES)
+        self.frames_directory = get_folder(path=path_frames)
 
-    def merge_alignments(self):
-        self._process_media(self._get_alignments)
-        self._process_person(self._merge_alignments)
-        self._process_person(self._move_alignment_file)
+        path_faces = os.path.join(_DATA_DIRECTORY, self.name, _FACES)
+        self.faces_directory = get_folder(path=path_faces)
 
-    def all_videos(self):
-        return self._people[self._person_a]['videos'] + self._people[self._person_b]['videos']
+        # path_processed = os.path.join(_DATA_DIRECTORY, self.name, _PROCESSED_DIRECTORY)
+        # self.processed_directory = get_folder(path=path_processed)
 
-    def _process_media(self, func, media_type='videos'):
-        for person in self._people:
-            for video in self._people[person][media_type]:
-                func(person, video)
+    def _check_if_exist(self):
+        if self.name in sources['people']:
+            self.logger.debug(f"Person {self.name} exist in your library.")
+        else:
+            self.logger.debug(f"Person {self.name} does not exist in your library.")
 
-    def _process_person(self, func):
-        for person in self._people:
-            func(person)
+    def print_info(self):
+        print(self.name)
+        print(f"Number of videos: {self.number_of_videos}")
+        print(f"Number of faces: {self.number_of_faces}")
+        print()
 
-    def _video_path(self, video):
-        return os.path.join(MyFaceSwap.VIDEO_PATH, video['name'])
+    def _get_videos(self):
+        for video_filename in os.listdir(self.videos_directory):
+            if os.path.splitext(video_filename)[1] in [".mp4", ".mov"]:
+                video_filepath = os.path.join(self.videos_directory, video_filename)
+                video_name, extension = os.path.splitext(video_filename)
+                video = Video(video_name=video_name, extension=extension, video_path=video_filepath, frames_directory=self.frames_directory, faces_directory=self.faces_directory)
+                self.videos.append(video)
 
-    def _video_frames_path(self, video):
-        return os.path.join(MyFaceSwap.PROCESSED_PATH, video['name'] + '_frames')
+    def add_video(self, filepath):
+        extension = os.path.splitext(filepath)[1]
+        video_name = self.name + str(self.number_of_videos)
+        new_video_path = os.path.join(self.videos_directory, video_name + extension)
+        shutil.copy(filepath, new_video_path)
 
-    def _video_faces_path(self, video):
-        return os.path.join(MyFaceSwap.PROCESSED_PATH, video['name'] + '_faces')
+        self.number_of_videos += 1
 
-    def _model_path(self):
-        path = MyFaceSwap.MODEL_PATH
-        return os.path.join(path, self._name)
+        if video_name not in [video.video_name for video in self.videos]:
+            video = Video(video_name=video_name, extension=extension, video_path=new_video_path, frames_directory=self.frames_directory, faces_directory=self.faces_directory)
+            self.videos.append(video)
+            self._extract_frames(video)
+            self._extract_faces(video)
 
-    def _model_data_path(self):
-        return os.path.join(MyFaceSwap.PROCESSED_PATH, "model_data_" + self._name)
+    def add_filter_image(self, filepath):
+        shutil.copy(filepath, self.filter_images_directory)
 
-    def _model_person_data_path(self, person):
-        return os.path.join(self._model_data_path(), person)
-
-    def _extract_frames(self, person, video):
-        video_frames_dir = self._video_frames_path(video)
-        video_clip = VideoFileClip(self._video_path(video))
+    def _extract_frames(self, video):
+        video_clip = VideoFileClip(video.video_path)
 
         start_time = time.time()
-        print('[extract-frames] about to extract_frames for {}, fps {}, length {}s'.format(video_frames_dir,
+        print('[extract-frames] about to extract_frames for {}, fps {}, length {}s'.format(video.video_name,
                                                                                            video_clip.fps,
                                                                                            video_clip.duration))
-
-        if os.path.exists(video_frames_dir):
-            print('[extract-frames] frames already exist, skipping extraction: {}'.format(video_frames_dir))
-            return
-
-        os.makedirs(video_frames_dir)
-        frame_num = 0
-        for frame in tqdm.tqdm(video_clip.iter_frames(fps=video['fps']), total=video_clip.fps * video_clip.duration):
-            video_frame_file = os.path.join(video_frames_dir, 'frame_{:03d}.jpg'.format(frame_num))
+        frame_number = 0
+        for frame in tqdm.tqdm(video_clip.iter_frames(fps=video_clip.fps), total=video_clip.fps * video_clip.duration):
+            video_frame_file = os.path.join(video.frames_folder, f'{video.video_name}_frame_{frame_number:04d}.jpg')
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Swap RGB to BGR to work with OpenCV
             cv2.imwrite(video_frame_file, frame)
-            frame_num += 1
+            frame_number += 1
 
-        print('[extract] finished extract_frames for {}, total frames {}, time taken {:.0f}s'.format(
-            video_frames_dir, frame_num - 1, time.time() - start_time))
+        # video.set_frames_number(frame_number-1)
 
-    def _extract_faces(self, person, video):
-        video_faces_dir = self._video_faces_path(video)
+        print(f'[extract] finished extract_frames for {video.frames_folder}, total frames {frame_number - 1}, time taken {time.time() - start_time:.0f}s')
 
-        start_time = time.time()
-        print('[extract-faces] about to extract faces for {}'.format(video_faces_dir))
+    def _extract_faces(self, video):
+        _faceswap.extract(input_dir=self.frames_directory, output_dir=self.faces_directory,
+                          alignments=video.alignments_path, arguments=arguments)
 
-        if os.path.exists(video_faces_dir):
-            print('[extract-faces] faces already exist, skipping face extraction: {}'.format(video_faces_dir))
+    def merge_alignments(self):
+        alignments_files = [video.alignments_path for video in self.videos]
+        alignment_file_path = os.path.join(self.faces_directory, _ALIGNMENTS_FILE)
+
+        if len(alignments_files) == 1:
+            shutil.copy(alignments_files[0], alignment_file_path)
+            return
+        elif len(alignments_files) < 1:
+            pass #TODO: add what if alignment is gone
+        alignments = self._load_alignments(alignments_files)
+
+        args = Alignments(faces_dir=self.faces_directory, output=alignment_file_path, alignments_files=alignments_files)
+        m = Merge(alignments, args)
+        m.process()
+
+    def _load_alignments(self, alignments_file):
+        """ Loads the given alignments file(s) prior to running the selected job.
+
+        Returns
+        -------
+        :class:`~tools.alignments.media.AlignmentData` or list
+            The alignments data formatted for use by the alignments tool. If multiple alignments
+            files have been selected, then this will be a list of
+            :class:`~tools.alignments.media.AlignmentData` objects
+        """
+        if len(alignments_file) <= 1:
+            self.logger.error("More than one alignments file required for merging")
             return
 
-        os.makedirs(video_faces_dir)
-        self._faceswap.extract(self._video_frames_path(video), video_faces_dir, self._people[person]['faces'])
+        retval = [AlignmentData(a_file) for a_file in alignments_file]
+        self.logger.debug("Alignments: %s", retval)
+        return retval
 
-    def _get_alignments(self, person, video):
-        align_file_path = os.path.join(os.getcwd(), self._video_frames_path(video), 'alignments.fsa')
-        print(align_file_path)
-        self._people[person]['alignments'].append(align_file_path)
 
-    def _merge_alignments(self, person):
-        self._faceswap_tool.align_merge(self._people[person]['alignments'], self._model_person_data_path(person))
+def get_all_info():
+    get_sources_info()
+    # print(sources)
+    for person_name in sources['people']:
+        person = Person(person_name)
+        person.print_info()
 
-    def _move_alignment_file(self, person):
-        merged_alignments = None
-        first = self._people[person]['alignments'][0]
-        directory = os.path.dirname(first)
+def _conv_extract_suparser(subparser):
+    if get_backend() == "cpu":
+        default_detector = default_aligner = "cv2-dnn"
+    else:
+        default_detector = "s3fd"
+        default_aligner = "fan"
 
-        for file in os.listdir(directory):
-            if file.endswith(".fsa") and file != 'alignments.fsa':
-                merged_alignments = file
+    subparser.add_argument('-D', '--detector', dest='detector', type=str.lower, default=default_detector,
+                           choices=PluginLoader.get_available_extractors("detect"),
+                           help="R|Detector to use. Some of these have configurable settings in "
+                                "'/config/extract.ini' or 'Settings > Configure Extract 'Plugins':"
+                                "\nL|cv2-dnn: A CPU only extractor which is the least reliable and least "
+                                "resource intensive. Use this if not using a GPU and time is important."
+                                "\nL|mtcnn: Good detector. Fast on CPU, faster on GPU. Uses fewer resources "
+                                "than other GPU detectors but can often return more false positives."
+                                "\nL|s3fd: Best detector. Slow on CPU, faster on GPU. Can detect more faces and "
+                                "fewer false positives than other GPU detectors, but is a lot more resource "
+                                "intensive.")
+    subparser.add_argument("-A", "--aligner", type=str.lower, default=default_aligner,
+                           choices=PluginLoader.get_available_extractors("align"),
+                           help="R|Aligner to use."
+                                "\nL|cv2-dnn: A CPU only landmark detector. Faster, less resource intensive, "
+                                "but less accurate. Only use this if not using a GPU and time is important."
+                                "\nL|fan: Best aligner. Fast on GPU, slow on CPU.")
+    return subparser
 
-        if merged_alignments:
-            merged_alignments_path = os.path.join(directory, merged_alignments)
-            new_merged_alignments_path = os.path.join(self._model_person_data_path(person), "alignments.fsa")
-            print(f"Current: {merged_alignments_path}, new: {new_merged_alignments_path}")
-            os.replace(merged_alignments_path, new_merged_alignments_path)
 
-    def _extract_faces_from_photos(self, person, photo_dir):
-        photo_faces_dir = self._video_faces_path({'name': photo_dir})
+def _set_extract_subparser(subparser):
+    subparser.add_argument('-i', '--input-path', dest='input_path',
+                           help="Input directory or video. Either a directory containing the image files you " +
+                                "wish to process or path to a video file. NB: This should be the source video/" +
+                                "frames NOT the source faces')")
+    subparser.add_argument('-p', '--person', type=str, dest='name',
+                           help='Name of a person, you wish to process. There will be folder with this name created in data/ '
+                                'to store all important files within it.')
 
-        start_time = time.time()
-        print('[extract-faces] about to extract faces for {}'.format(photo_faces_dir))
+    return _conv_extract_suparser(subparser)
 
-        if os.path.exists(photo_faces_dir):
-            print('[extract-faces] faces already exist, skipping face extraction: {}'.format(photo_faces_dir))
-            return
 
-        os.makedirs(photo_faces_dir)
-        self._faceswap.extract(self._video_path({'name': photo_dir}), photo_faces_dir, self._people[person]['faces'])
+def _set_train_subparser(subparser):
+    subparser.add_argument('-A', '--person-A', type=str, dest='person_A', required=True,
+                           help='Name of a person A. This is the original face, i.e. the face that you want to remove '
+                                'and replace with face B. This person must have extracted faces to proceed.')
+    subparser.add_argument('-B', '--person-B', type=str, dest='person_B', required=True,
+                           help='Name of a person B. This is the swap face, i.e. the face that you want to place'
+                                'onto the head of person A. This person must have extracted faces to proceed.')
+    subparser.add_argument('-m', '--model', dest="model_dir", required=True,
+                           help="Model directory. This is where the training data will be stored. You should "
+                                "always specify a new folder for new models. If starting a new model, select "
+                                "either an empty folder, or a folder which does not exist (which will be "
+                                "created). If continuing to train an existing model, specify the location of "
+                                "the existing model."
+                           )
+    subparser.add_argument('-t', '--trainer', type=str.lower, default='original', choices=['original', 'realface', 'villain', 'dfl-sae'],
+                           help="R|Select which trainer to use. Trainers can be configured from the Settings "
+                                "menu or the config folder."
+                                "\nL|original: The original model created by /u/deepfakes."
+                                "\nL|dfl-sae: Adaptable model from deepfacelab"
+                                "\nL|realface: A high detail, dual density model based on DFaker, with "
+                                "customizable in/out resolution. The autoencoders are unbalanced so B>A swaps "
+                                "won't work so well. By andenixa et al. Very configurable."
+                                "\nL|villain: 128px in/out model from villainguy. Very resource hungry (You "
+                                "will require a GPU with a fair amount of VRAM). Good for details, but more "
+                                "susceptible to color differences."
+                           )
+    subparser.add_argument("-bs", "--batch-size", type=int, dest="batch_size", default=16,
+                           help="Batch size. This is the number of images processed through the model for each "
+                                "side per iteration. NB: As the model is fed 2 sides at a time, the actual "
+                                "number of images within the model at any one time is double the number that you "
+                                "set here. Larger batches require more GPU RAM."
+                           )
+    subparser.add_argument("-it", "--iterations", type=int, default=1000000,
+                           help="Length of training in iterations. This is only really used for automation. "
+                                "There is no 'correct' number of iterations a model should be trained for. "
+                                "You should stop training when you are happy with the previews. However, if "
+                                "you want the model to stop automatically at a set number of iterations, you "
+                                "can set that value here."
+                           )
+    subparser.add_argument("-ss", "--snapshot-interval", type=int, dest="snapshot_interval", default=25000,
+                           help="Sets the number of iterations before saving a backup snapshot of the model "
+                                "in it's current state. Set to 0 for off."
+                           )
+    return subparser
 
-    def preprocess(self):
-        self.extract_frames()
-        self.extract_faces()
-        # self.merge_faces()
+def _set_convert_subparser(subparser):
+    subparser.add_argument('-i', '--input-path', dest='input_path',
+                           help="Input directory or video. Either a directory containing the image files you " +
+                                "wish to process or path to a video file"
+                                ". NB: This should be the source video/" +
+                                "frames NOT the source faces')")
+    subparser.add_argument('-m', '--model', dest="model_dir", required=True,
+                           help="Model directory. This is where the training data will be stored. You should "
+                                "always specify a new folder for new models. If starting a new model, select "
+                                "either an empty folder, or a folder which does not exist (which will be "
+                                "created). If continuing to train an existing model, specify the location of "
+                                "the existing model."
+                           )
+    subparser.add_argument('-t', '--trainer', type=str.lower, default='original',
+                           choices=['original', 'realface', 'villain', 'dfl-sae'],
+                           help="R|Select which trainer to use. Trainers can be configured from the Settings "
+                                "menu or the config folder."
+                                "\nL|original: The original model created by /u/deepfakes."
+                                "\nL|dfl-sae: Adaptable model from deepfacelab"
+                                "\nL|realface: A high detail, dual density model based on DFaker, with "
+                                "customizable in/out resolution. The autoencoders are unbalanced so B>A swaps "
+                                "won't work so well. By andenixa et al. Very configurable."
+                                "\nL|villain: 128px in/out model from villainguy. Very resource hungry (You "
+                                "will require a GPU with a fair amount of VRAM). Good for details, but more "
+                                "susceptible to color differences."
+                           )
+    subparser.add_argument('-o', '--output-path', dest='output_path', required=True,
+                           help="Output directory. This is where the converted file will be saved.")
 
-    def _symlink_faces_for_model(self, person, video):
-        if isinstance(video, str):
-            video = {'name': video}
-        for face_file in os.listdir(self._video_faces_path(video)):
-            target_file = os.path.join(self._model_person_data_path(person), video['name'] + "_" + face_file)
-            face_file_path = os.path.join(os.getcwd(), self._video_faces_path(video), face_file)
-            os.symlink(face_file_path, target_file)
+    return _conv_extract_suparser(subparser)
 
-    def train(self):
-        # Setup directory structure for model, and create one director for person_a faces, and
-        # another for person_b faces containing symlinks to all faces.
-        if not os.path.exists(self._model_path()):
-            os.makedirs(self._model_path())
 
-        if os.path.exists(self._model_data_path()):
-            shutil.rmtree(self._model_data_path())
+def _set_convert_live_subparser(subparser):
+    subparser.add_argument('-m', '--model', dest="model_dir", required=True,
+                           help="Model directory. This is where the training data will be stored. You should "
+                                "always specify a new folder for new models. If starting a new model, select "
+                                "either an empty folder, or a folder which does not exist (which will be "
+                                "created). If continuing to train an existing model, specify the location of "
+                                "the existing model."
+                           )
+    subparser.add_argument('-o', '--output-path', dest='output_path', default=None,
+                           help="Optional output directory. This is where the converted files will be saved.")
 
-        for person in self._people:
-            os.makedirs(self._model_person_data_path(person))
-        self._process_media(self._symlink_faces_for_model)
-
-        #merge align files
-        self.merge_alignments()
-
-        self._faceswap.train(self._model_person_data_path(self._person_a), self._model_person_data_path(self._person_b),
-                             self._model_path())
-
-    def convert(self, video_file, swap_model=False, duration=None, start_time=None, use_gan=False, face_filter=False,
-                photos=True, crop_x=None, width=None, side_by_side=False):
-        # Magic incantation to not have tensorflow blow up with an out of memory error.
-        import tensorflow as tf
-        import keras.backend.tensorflow_backend as K
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        config.gpu_options.visible_device_list = "0"
-        K.set_session(tf.Session(config=config))
-
-        # Load model
-        model_name = "Original"
-        converter_name = "Masked"
-        if use_gan:
-            model_name = "GAN"
-            converter_name = "GAN"
-        model = PluginLoader.get_model(model_name)(Path(self._model_path(use_gan)))
-        if not model.load(swap_model):
-            print('model Not Found! A valid model must be provided to continue!')
-            exit(1)
-
-        # Load converter
-        converter = PluginLoader.get_converter(converter_name)
-        converter = converter(model.converter(False),
-                              blur_size=8,
-                              seamless_clone=True,
-                              mask_type="facehullandrect",
-                              erosion_kernel_size=None,
-                              smooth_mask=True,
-                              avg_color_adjust=True)
-
-        # Load face filter
-        filter_person = self._person_a
-        if swap_model:
-            filter_person = self._person_b
-        filter = FaceFilter(self._people[filter_person]['faces'])
-
-        # Define conversion method per frame
-        def _convert_frame(frame, convert_colors=True):
-            if convert_colors:
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Swap RGB to BGR to work with OpenCV
-            for face in detect_faces(frame, "cnn"):
-                if (not face_filter) or (face_filter and filter.check(face)):
-                    frame = converter.patch_image(frame, face)
-                    frame = frame.astype(numpy.float32)
-            if convert_colors:
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Swap RGB to BGR to work with OpenCV
-            return frame
-
-        def _convert_helper(get_frame, t):
-            return _convert_frame(get_frame(t))
-
-        media_path = self._video_path({'name': video_file})
-        if not photos:
-            # Process video; start loading the video clip
-            video = VideoFileClip(media_path)
-
-            # If a duration is set, trim clip
-            if duration:
-                video = video.subclip(start_time, start_time + duration)
-
-            # Resize clip before processing
-            if width:
-                video = video.resize(width=width)
-
-            # Crop clip if desired
-            if crop_x:
-                video = video.fx(crop, x2=video.w / 2)
-
-            # Kick off convert frames for each frame
-            new_video = video.fl(_convert_helper)
-
-            # Stack clips side by side
-            if side_by_side:
-                def add_caption(caption, clip):
-                    text = (TextClip(caption, font='Amiri-regular', color='white', fontsize=80).
-                            margin(40).
-                            set_duration(clip.duration).
-                            on_color(color=(0, 0, 0), col_opacity=0.6))
-                    return CompositeVideoClip([clip, text])
-
-                video = add_caption("Original", video)
-                new_video = add_caption("Swapped", new_video)
-                final_video = clips_array([[video], [new_video]])
-            else:
-                final_video = new_video
-
-            # Resize clip after processing
-            # final_video = final_video.resize(width = (480 * 2))
-
-            # Write video
-            output_path = os.path.join(self.OUTPUT_PATH, video_file)
-            final_video.write_videofile(output_path, rewrite_audio=True)
-
-            # Clean up
-            del video
-            del new_video
-            del final_video
-        else:
-            # Process a directory of photos
-            for face_file in os.listdir(media_path):
-                face_path = os.path.join(media_path, face_file)
-                image = cv2.imread(face_path)
-                image = _convert_frame(image, convert_colors=False)
-                cv2.imwrite(os.path.join(self.OUTPUT_PATH, face_file), image)
+    return _conv_extract_suparser(subparser)
 
 
 if __name__ == '__main__':
-    faceit = MyFaceSwap('emilia_to_jeniffer', 'Emilia', "Jeniffer")
-
-    faceit.add_video('Emilia', 'EmiliaClarke_1.mp4')
-    faceit.add_video('Emilia', 'EmiliaClarke_2.mp4')
-    faceit.add_video('Emilia', 'EmiliaClarke_3.mp4')
-    faceit.add_video("Jeniffer", 'JenifferAniston_1.mp4')
-    faceit.add_video("Jeniffer", 'JenifferAniston_2.mp4')
-    faceit.add_video("Jeniffer", 'JenifferAniston_3.mp4')
-    MyFaceSwap.add_model(faceit)
-
     parser = argparse.ArgumentParser()
-    parser.add_argument('task', choices=['preprocess', 'train', 'convert'])
-    parser.add_argument('model', choices=MyFaceSwap.MODELS.keys())
-    parser.add_argument('video', nargs='?')
-    parser.add_argument('--duration', type=int, default=None)
-    parser.add_argument('--photos', action='store_true', default=False)
-    parser.add_argument('--swap-model', action='store_true', default=False)
-    parser.add_argument('--face-filter', action='store_true', default=False)
-    parser.add_argument('--start-time', type=int, default=0)
-    parser.add_argument('--crop-x', type=int, default=None)
-    parser.add_argument('--width', type=int, default=None)
-    parser.add_argument('--side-by-side', action='store_true', default=False)
+    subparsers = parser.add_subparsers(dest='command')
+
+    # EXTRACT
+    extract = subparsers.add_parser('extract', help="Extract the faces from pictures")
+    _set_extract_subparser(extract)
+
+    # TRAIN
+    train = subparsers.add_parser('train', help="This command trains the model for the two faces A and B")
+    _set_train_subparser(train)
+
+    # CONVERT
+    convert = subparsers.add_parser('convert', help="Convert a source image to a new one with the face swapped")
+    _set_convert_subparser(convert)
+
+    # CONVERT LIVE
+    convert_live = subparsers.add_parser('convert_live', help="Convert a live stream to a new one with the face swapped")
+    _set_convert_live_subparser(convert_live)
+
     arguments = parser.parse_args()
+    script = ScriptExecutor(arguments.command)
 
-    faceit = MyFaceSwap.MODELS[arguments.model]
+    if arguments.command == 'extract':
+        person = Person(arguments.name)
+        person.add_video(arguments.input_path)
+    elif arguments.command == 'train':
+        person_A = Person(arguments.person_A)
+        person_A.merge_alignments()
+        person_B = Person(arguments.person_B)
+        person_B.merge_alignments()
 
-    if arguments.task == 'preprocess':
-        faceit.preprocess()
-    elif arguments.task == 'train':
-        faceit.train()
-    elif arguments.task == 'convert':
-        if not arguments.video:
-            print('Need a video to convert. Some ideas: {}'.format(
-                ", ".join([video['name'] for video in faceit.all_videos()])))
-        else:
-            faceit.convert(arguments.video, duration=arguments.duration, swap_model=arguments.swap_model, face_filter=arguments.face_filter,
-                           start_time=arguments.start_time, photos=arguments.photos, crop_x=arguments.crop_x, width=arguments.width,
-                           side_by_side=arguments.side_by_side)
+        _faceswap.train(input_a_dir=person_A.faces_directory, input_b_dir=person_B.faces_directory, arguments=arguments)
+    elif arguments.command == 'convert':
+        import tempfile
+
+        temp_dir = tempfile.TemporaryDirectory()
+        alignments_file = os.path.join(temp_dir.name, _ALIGNMENTS_FILE)
+        _faceswap.extract_for_conversion(input_dir=arguments.input_path, output_dir=temp_dir.name,
+                                         alignments=alignments_file, arguments=arguments)
+        _faceswap.convert(arguments=arguments, alignments=alignments_file)
+
+        # use temp_dir, and when done:
+        temp_dir.cleanup()
+    elif arguments.command == 'convert-live':
+        _faceswap.convert_live(arguments=arguments)
+    else:
+        pass

@@ -83,6 +83,7 @@ class Writer(Output):
 
     def set_frame_order(self, total_count):
         """ Return the full list of frames to be converted in order """
+        print(total_count)
         if self.frame_ranges is None:
             retval = list(range(1, total_count + 1))
         else:
@@ -95,6 +96,7 @@ class Writer(Output):
     def get_writer(self):
         """ Add the requested encoding options and return the writer """
         logger.debug("writer config: %s", self.config)
+        print(self.video_fps)
         return imageio.get_writer(self.video_tmp_file,
                                   fps=self.video_fps,
                                   ffmpeg_log_level="error",

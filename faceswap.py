@@ -40,7 +40,7 @@ def _main():
                      "Convert a source image to a new one with the face swapped")
     args.ConvertLiveArgs(subparser, "convert_live", "Convert a live stream"
                                                     " to a new one with the face swapped")
-    args.GuiArgs(subparser, "gui", "Launch the Faceswap Graphical User Interface")
+
     _PARSER.set_defaults(func=_bad_args)
     arguments = _PARSER.parse_args()
     arguments.func(arguments)

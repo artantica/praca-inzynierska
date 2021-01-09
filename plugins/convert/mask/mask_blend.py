@@ -68,15 +68,12 @@ class Mask(Adjustment):
         :class:`numpy.ndarray`
             The mask sized to Faceswap model output with any requested blurring applied.
         """
-        # self.mask_type = 'none'
-        print(self.mask_type)
         if self.mask_type == "none":
             # Return a dummy mask if not using a mask
             mask = np.ones_like(self.dummy[:, :, 1], dtype="float32")[..., None]
         elif self.mask_type == "predicted":
             mask = predicted_mask[..., None]
         else:
-            print(self.mask_type)
             mask = detected_face.mask[self.mask_type]
             mask.set_blur_and_threshold(blur_kernel=self.config["kernel_size"],
                                         blur_type=self.config["type"],

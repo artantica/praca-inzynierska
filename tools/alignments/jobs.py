@@ -556,6 +556,7 @@ class Merge():
         self.final_alignments = alignments[0]
         self.process_alignments = alignments[1:]
         self._hashes_to_frame = None
+        self._output = self.get_output(arguments)
 
     @staticmethod
     def get_faces(arguments):
@@ -564,6 +565,14 @@ class Merge():
         if not hasattr(arguments, "faces_dir") or not arguments.faces_dir:
             return None
         return Faces(arguments.faces_dir)
+
+    @staticmethod
+    def get_output(arguments):
+        """ If output argument is specified, set output path
+            otherwise return None """
+        if not hasattr(arguments, "output") or not arguments.output:
+            return None
+        return arguments.output
 
     def process(self):
         """Process the alignments file merge """
@@ -645,10 +654,13 @@ class Merge():
 
     def set_destination_filename(self):
         """ Set the destination filename """
-        folder = os.path.split(self.final_alignments.file)[0]
-        ext = os.path.splitext(self.final_alignments.file)[1]
-        now = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = os.path.join(folder, "alignments_merged_{}{}".format(now, ext))
+        if self._output:
+            filename = self._output
+        else:
+            folder = os.path.split(self.final_alignments.file)[0]
+            ext = os.path.splitext(self.final_alignments.file)[1]
+            now = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = os.path.join(folder, "alignments_merged_{}{}".format(now, ext))
         logger.debug("Output set to: '%s'", filename)
         self.final_alignments.set_filename(filename)
 

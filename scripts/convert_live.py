@@ -15,12 +15,10 @@ from tqdm import tqdm
 from scripts.fsmedia import Alignments, PostProcess, finalize
 from lib.serializer import get_serializer
 from lib.live_convert import LiveConverter
-# from lib.convert import Converter
-from lib.faces_detect import DetectedFace
-from lib.faces_detect_simple import detect_faces
 from lib.gpu_stats import GPUStats
 from lib.image import read_image_hash, ImagesLoader
 from lib.multithreading import MultiThread, total_cpus
+from lib.keypress import KBHit
 from lib.queue_manager import queue_manager
 from lib.utils import FaceswapError, get_backend, get_folder, get_image_paths
 from plugins.extract.pipeline import Extractor, ExtractMedia
@@ -32,8 +30,8 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 class Convert_Live:  # pylint:disable=too-few-public-methods
     """ The Faceswap Face Conversion Process.
 
-    The conversion process is responsible for swapping the faces on source frames with the output
-    from a trained model.
+    The conversion process is responsible for swapping the faces on source frames with the optional
+    output from a trained model.
 
     It leverages a series of user selected post-processing plugins, executed from
     :class:`lib.convert.Converter`.
@@ -50,15 +48,16 @@ class Convert_Live:  # pylint:disable=too-few-public-methods
     def __init__(self, arguments):
         logger.debug("Initializing %s: (args: %s)", self.__class__.__name__, arguments)
         self._args = arguments
-
+        self.results_path = self.get_output(arguments=arguments)
 
         self._patch_threads = None
 
         self._webcam_io = WebcamIO(self._args)
         self._predictor = Predict(self._args)
 
-        configfile = self._args.configfile if hasattr(self._args, "configfile") else None
+        self.model_name = self._args.model_dir.split("/")[-1]
 
+        configfile = self._args.configfile if hasattr(self._args, "configfile") else None
         self._converter = LiveConverter(self._predictor.output_size,
                                     self._predictor.coverage_ratio,
                                     self._webcam_io.draw_transparent,
@@ -67,6 +66,14 @@ class Convert_Live:  # pylint:disable=too-few-public-methods
                                     configfile=configfile)
 
         logger.debug("Initialized %s", self.__class__.__name__)
+
+    @staticmethod
+    def get_output(arguments):
+        """ If output argument is specified, set output path
+            otherwise return None """
+        if not hasattr(arguments, "output_dir") or not arguments.output_dir:
+            return None
+        return get_folder(arguments.output_dir)
 
     @property
     def _queue_size(self):
@@ -83,58 +90,10 @@ class Convert_Live:  # pylint:disable=too-few-public-methods
     def _pool_processes(self):
         """ int: The number of threads to run in parallel. Based on user options and number of
         available processors. """
-        if self._args.singleprocess:
-            retval = 1
-        elif self._args.jobs > 0:
-            retval = min(self._args.jobs, total_cpus(), self._images.count)
-        else:
-            retval = min(total_cpus(), self._images.count)
+        retval = total_cpus()
         retval = 1 if retval == 0 else retval
         logger.debug(retval)
         return retval
-
-    def _validate(self):
-        """ Validate the Command Line Options.
-
-        Ensure that certain cli selections are valid and won't result in an error. Checks:
-            * If frames have been passed in with video output, ensure user supplies reference
-            video.
-            * If a mask-type is selected, ensure it exists in the alignments file.
-            * If a predicted mask-type is selected, ensure model has been trained with a mask
-            otherwise attempt to select first available masks, otherwise raise error.
-
-        Raises
-        ------
-        FaceswapError
-            If an invalid selection has been found.
-
-        """
-        if (self._args.writer == "ffmpeg" and
-                not self._images.is_video and
-                self._args.reference_video is None):
-            raise FaceswapError("Output as video selected, but using frames as input. You must "
-                                "provide a reference video ('-ref', '--reference-video').")
-        if (self._args.mask_type not in ("none", "predicted") and
-                not self._alignments.mask_is_valid(self._args.mask_type)):
-            msg = ("You have selected the Mask Type `{}` but at least one face does not have this "
-                   "mask stored in the Alignments File.\nYou should generate the required masks "
-                   "with the Mask Tool or set the Mask Type option to an existing Mask Type.\nA "
-                   "summary of existing masks is as follows:\nTotal faces: {}, Masks: "
-                   "{}".format(self._args.mask_type, self._alignments.faces_count,
-                               self._alignments.mask_summary))
-            raise FaceswapError(msg)
-        if self._args.mask_type == "predicted" and not self._predictor.has_predicted_mask:
-            available_masks = [k for k, v in self._alignments.mask_summary.items()
-                               if k != "none" and v == self._alignments.faces_count]
-            if not available_masks:
-                msg = ("Predicted Mask selected, but the model was not trained with a mask and no "
-                       "masks are stored in the Alignments File.\nYou should generate the "
-                       "required masks with the Mask Tool or set the Mask Type to `none`.")
-                raise FaceswapError(msg)
-            mask_type = available_masks[0]
-            logger.warning("Predicted Mask selected, but the model was not trained with a "
-                           "mask. Selecting first available mask: '%s'", mask_type)
-            self._args.mask_type = mask_type
 
     def process(self):
         """ The entry point for triggering the Live Conversion Process.
@@ -142,41 +101,66 @@ class Convert_Live:  # pylint:disable=too-few-public-methods
         Should only be called from  :class:`lib.cli.launcher.ScriptExecutor`
         """
         logger.debug("Starting Live Conversion")
-        print("Staring live mode. Capturing video from webcam!")
-        print("Press q to Quit")
-
+        print("Staring live mode. Capturing video from web camera!")
+        print("Press Enter to Quit")
 
         video_capture = cv2.VideoCapture(0)
         import time
         time.sleep(1)
+        counter = 0
 
-        # width = video_capture.get(3)  # float
-        # height = video_capture.get(4)  # float
+        images_to_save = []
+        keypress = KBHit(is_gui=False)
 
         while True:
-            _, frame = video_capture.read()
+            status, frame = video_capture.read()
+            if status:
+                # frame = cv2.resize(frame, (640, 480))
+                # flip image, because webcam inverts it and we trained the model the other way!
+                # frame = cv2.flip(frame, 1)
+                cv2.imshow('Real', frame)
+                # image = self.convert_frame(frame, convert_colors=False)
 
-            # frame = cv2.resize(frame, (640, 480))
-            # flip image, because webcam inverts it and we trained the model the other way!
-            # frame = cv2.flip(frame, 1)
-            image = self.convert_frame(frame, convert_colors=False)
+                # image = cv2.flip(image, 1)
+                # cv2.imshow('Live video', image)
 
-            # image = cv2.flip(image, 1)
-            cv2.imshow('Live video', image)
+                # if self.results_path:
+                #     image_save = image * 255.0
+                #     image_save = np.rint(image_save,
+                #                        out=np.empty(image_save.shape, dtype="uint8"),
+                #                        casting='unsafe')
+                # images_to_save.append((counter, image_save))
+                # if self._writer_pre_encode is not None:
+                #     patched_face = self._writer_pre_encode(patched_face)
+                #     print("After _writer_pre_encode")
 
-            # Hit 'q' on the keyboard to quit!
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                video_capture.release()
-                break
+                # swapped/filename = "{}_swapped_{:04d}.png".format(self.model_name, counter)
+                # swapped_path = os.path.join(swapped_frame_path, swapped_filename)
+                # args = (cv2.IMWRITE_PNG_COMPRESSION, 3)
+                # image = cv2.imencode(".png", image, args)[1]
+                # with open(swapped_path, "wb") as outfile:
+                #     outfile.write(image)
+                # cv2.imwrite(swapped_path, image_save)
+
+            # Hit 'enter' on the keyboard to quit!
+            if cv2.waitKey(10) and keypress.kbhit():
+                console_key = keypress.getch()
+                if console_key in ("\n", "\r"):
+                    logger.debug("Exit requested")
+                    video_capture.release()
+                    break
 
         cv2.destroyAllWindows()
-        exit()
+        # TODO: zapis pliku
+        # self._webcam_io.save(images_to_save)
+        # exit()
 
     def convert_frame(self, frame, convert_colors=True):
         if convert_colors:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # Swap RGB to BGR to work with OpenCV
 
         item = dict(filename="filename", image=frame, detected_faces=self._webcam_io.get_detected_faces(frame))
+        print(item)
         item = self._predictor.load_item(item)
 
         frame = self._converter.process(item)
@@ -210,7 +194,7 @@ class WebcamIO:
 
         # For frame skipping
         self._imageidxre = re.compile(r"(\d+)(?!.*\d\.)(?=\.\w+$)")
-        self._writer = self._get_writer()
+        # self._writer = self._get_writer()
 
         # Extractor for on the fly detection
         self._extractor = self._load_extractor()
@@ -221,17 +205,17 @@ class WebcamIO:
     def draw_transparent(self):
         """ bool: ``True`` if the selected writer's Draw_transparent configuration item is set
         otherwise ``False`` """
-        return self._writer.config.get("draw_transparent", False)
+        return False #self._writer.config.get("draw_transparent", False)
 
     @property
     def pre_encode(self):
         """ python function: Selected writer's pre-encode function, if it has one,
         otherwise ``None`` """
-        dummy = np.zeros((20, 20, 3), dtype="uint8")
-        test = self._writer.pre_encode(dummy)
-        retval = None if test is None else self._writer.pre_encode
-        logger.debug("Writer pre_encode function: %s", retval)
-        return retval
+        # dummy = np.zeros((20, 20, 3), dtype="uint8")
+        # test = self._writer.pre_encode(dummy)
+        # retval = None if test is None else self._writer.pre_encode
+        # logger.debug("Writer pre_encode function: %s", retval)
+        return None #retval
 
     def get_detected_faces(self, image):
         return self._get_detected_faces(image)
@@ -394,7 +378,6 @@ class WebcamIO:
         # completion_event.set()
         logger.debug("Save Faces: Complete")
 
-
 class Predict():
     """ Obtains the output from the Faceswap model.
 
@@ -424,7 +407,6 @@ class Predict():
 
     def load_item(self, item):
         batch = self._predict_faces(item)
-        print(batch)
         return batch
 
     @property
@@ -562,11 +544,6 @@ class Predict():
         logger.trace("Got from queue: '%s'", item["filename"])
         faces_count = len(item["detected_faces"])
 
-        # Safety measure. If a large stream of frames appear that do not have faces,
-        # these will stack up into RAM. Keep a count of consecutive frames with no faces.
-        # If self._batchsize number of frames appear, force the current batch through
-        # to clear RAM.
-        consecutive_no_faces = consecutive_no_faces + 1 if faces_count == 0 else 0
         self._faces_count += faces_count
         if faces_count > 1:
             self._verify_output = True
