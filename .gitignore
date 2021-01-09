@@ -2,7 +2,6 @@
 .idea/
 Makefile
 Untitled*.ipynb
-a*
 data/
 *.log.*
 modele/
